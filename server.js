@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import connectDB from './config/database.js';
+import { connectDB } from './config/database.js'; 
 
 // Import routes
 import vendorRoutes from './routes/vendorRoutes.js';
@@ -9,9 +9,6 @@ import adminRoutes from './routes/adminRoutes.js';
 
 // Load env vars
 dotenv.config();
-
-// Connect to database
-connectDB();
 
 const app = express();
 
@@ -31,8 +28,38 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// 404 handler
+app.use('*', (req, res) => {
+  res.status(404).json({
+    success: false,
+    message: 'Route not found'
+  });
+});
+
+// Global error handler
+app.use((error, req, res, next) => {
+  console.error('Global error handler:', error);
+  
+  res.status(500).json({
+    success: false,
+    message: 'Something went wrong!',
+    error: process.env.NODE_ENV === 'development' ? error.message : undefined
+  });
+});
+
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+// Connect to database and start server
+const startServer = async () => {
+  try {
+    await connectDB();
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error.message);
+    process.exit(1);
+  }
+};
+
+startServer();

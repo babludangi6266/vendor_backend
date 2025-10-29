@@ -1,36 +1,31 @@
-import mongoose from 'mongoose';
 
-const vendorSchema = new mongoose.Schema({
-  // Personal Information
+import { DataTypes } from 'sequelize';
+import { sequelize } from '../config/database.js'; 
+
+const Vendor = sequelize.define('Vendor', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
   name: {
-    type: String,
-    required: true,
-    trim: true
+    type: DataTypes.STRING(100),
+    allowNull: false
   },
-  
   contact: {
-    type: String,
-    required: true,
-    trim: true
+    type: DataTypes.STRING(20),
+    allowNull: false
   },
-  
   email: {
-    type: String,
-    trim: true,
-    lowercase: true
+    type: DataTypes.STRING(100),
+    allowNull: true
   },
-  
   address: {
-    type: String,
-    required: true,
-    trim: true
+    type: DataTypes.TEXT,
+    allowNull: false
   },
-  
-  // Service Information
   serviceCategory: {
-    type: String,
-    required: true,
-    enum: [
+    type: DataTypes.ENUM(
       'electrician',
       'plumber', 
       'carpenter',
@@ -39,26 +34,24 @@ const vendorSchema = new mongoose.Schema({
       'technician',
       'gardener',
       'mason'
-    ]
+    ),
+    allowNull: false
   },
-  
   rate: {
-    type: Number,
-    min: 0
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true
   },
-  
   rateType: {
-    type: String,
-    enum: ['hourly', 'per-job'],
-    default: 'hourly'
+    type: DataTypes.ENUM('hourly', 'per-job'),
+    defaultValue: 'hourly'
   },
-  
   registrationDate: {
-    type: Date,
-    default: Date.now
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW
   }
+}, {
+  tableName: 'vendors',
+  timestamps: false
 });
-
-const Vendor = mongoose.model('Vendor', vendorSchema);
 
 export default Vendor;
