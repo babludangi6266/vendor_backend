@@ -1,3 +1,5 @@
+
+
 import { Sequelize } from 'sequelize';
 import dotenv from 'dotenv';
 
@@ -34,10 +36,12 @@ export const connectDB = async () => {
     await sequelize.authenticate();
     console.log('MySQL Connected Successfully');
     
-    await sequelize.sync({ force: false });
+    // Use safer sync options
+    await sequelize.sync({ force: false }); // Remove alter: true to be safer
     console.log('Database synced successfully');
   } catch (error) {
     console.error('Database connection error:', error.message);
     process.exit(1);
   }
 };
+
