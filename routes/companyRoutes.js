@@ -5,6 +5,9 @@ import Otp from '../models/Otp.js';
 import Admin from '../models/Admin.js';
 import multer from 'multer';
 import path from 'path';
+import axios from 'axios';
+import https from 'https'; // ADD THIS IMPORT
+import { Sequelize } from 'sequelize'; // ADD THIS IMPORT
 
 const router = express.Router();
 
@@ -85,59 +88,26 @@ const verifyOtpValidation = [
   body('otp').isLength({ min: 6, max: 6 }).withMessage('OTP must be 6 digits')
 ];
 
-// Update validation rules to be more flexible
 const registerValidation = [
   body('companyName').notEmpty().withMessage('Company name is required'),
   body('contactPerson').notEmpty().withMessage('Contact person is required'),
   body('mobile').isLength({ min: 10, max: 10 }).withMessage('Mobile number must be 10 digits'),
   body('email').isEmail().withMessage('Valid email is required'),
   
-  // More flexible address validation
   body('address[street]').notEmpty().withMessage('Street address is required'),
   body('address[city]').notEmpty().withMessage('City is required'),
   body('address[state]').notEmpty().withMessage('State is required'),
   body('address[pincode]').isLength({ min: 6, max: 6 }).withMessage('PIN Code must be 6 digits'),
   
-  // More flexible categories validation
-  body('categories').custom((value, { req }) => {
-    // Check if categories is sent as array or individual fields
-    let categoriesArray;
-    
-    if (Array.isArray(value)) {
-      categoriesArray = value;
-    } else if (typeof value === 'string') {
-      try {
-        categoriesArray = JSON.parse(value);
-      } catch (e) {
-        // If not JSON, check for individual category fields
-        categoriesArray = Object.keys(req.body)
-          .filter(key => key.startsWith('categories['))
-          .map(key => req.body[key]);
-      }
-    } else {
-      // Check for individual category fields
-      categoriesArray = Object.keys(req.body)
-        .filter(key => key.startsWith('categories['))
-        .map(key => req.body[key]);
-    }
-    
-    if (!categoriesArray || categoriesArray.length === 0) {
-      throw new Error('At least one category is required');
-    }
-    
-    // Store parsed categories in request for later use
-    req.parsedCategories = categoriesArray;
-    return true;
-  }),
+  body('category').notEmpty().withMessage('Category is required'),
   
   body('candidateQuantity').isInt({ min: 1 }).withMessage('Candidate quantity must be at least 1'),
   
-  // More flexible jobLocation validation
   body('jobLocation[city]').notEmpty().withMessage('Job location city is required'),
   body('jobLocation[state]').notEmpty().withMessage('Job location state is required')
 ];
 
-// Send OTP
+// Send OTP using dvhosting.in API - FIXED VERSION
 router.post('/send-otp', sendOtpValidation, async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -162,7 +132,7 @@ router.post('/send-otp', sendOtpValidation, async (req, res) => {
 
     // Generate OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
     // Save OTP to database
     await Otp.create({
@@ -172,14 +142,46 @@ router.post('/send-otp', sendOtpValidation, async (req, res) => {
       expiresAt
     });
 
-    // In production, send OTP via SMS service here
-    console.log(`OTP for ${mobile}: ${otp}`);
+    // Send OTP via dvhosting.in API - FIXED: Use imported https module
+    try {
+      const dv_key = process.env.DVHOSTING_API_KEY;
+      const num = mobile;
+      
+      const otp_url = `https://dvhosting.in/api-sms-v3.php?api_key=${dv_key}&number=${num}&otp=${otp}`;
+      
+      console.log('Sending OTP via SMS API:', { mobile, otp_url });
 
-    res.status(200).json({
-      success: true,
-      message: 'OTP sent successfully',
-      otp: process.env.NODE_ENV === 'development' ? otp : undefined
-    });
+      const response = await axios.get(otp_url, {
+        timeout: 10000,
+        httpsAgent: new https.Agent({ // FIXED: Use imported https module
+          rejectUnauthorized: false
+        })
+      });
+
+      console.log('SMS API Response:', response.data);
+
+      res.status(200).json({
+        success: true,
+        message: 'OTP sent successfully'
+      });
+
+    } catch (smsError) {
+      console.error('SMS API error:', smsError);
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Development OTP for ${mobile}: ${otp}`);
+        return res.status(200).json({
+          success: true,
+          message: 'OTP generated (SMS may have failed)',
+          otp: otp
+        });
+      }
+      
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send OTP via SMS. Please try again.'
+      });
+    }
 
   } catch (error) {
     console.error('Send OTP error:', error);
@@ -190,7 +192,7 @@ router.post('/send-otp', sendOtpValidation, async (req, res) => {
   }
 });
 
-// Verify OTP
+// Verify OTP - FIXED VERSION
 router.post('/verify-otp', verifyOtpValidation, async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -210,7 +212,7 @@ router.post('/verify-otp', verifyOtpValidation, async (req, res) => {
         mobile,
         otp,
         isUsed: false,
-        expiresAt: { [Op.gt]: new Date() }
+        expiresAt: { [Sequelize.Op.gt]: new Date() } // FIXED: Use imported Sequelize
       }
     });
 
@@ -239,8 +241,7 @@ router.post('/verify-otp', verifyOtpValidation, async (req, res) => {
   }
 });
 
-// Register company
-// Register company
+// Register company (no payment required)
 router.post('/register', upload.single('businessDocument'), registerValidation, async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -260,22 +261,21 @@ router.post('/register', upload.single('businessDocument'), registerValidation, 
       candidateQuantity
     } = req.body;
 
-    // COMMENTED: OTP verification check - bypass for testing
     // Check if mobile is verified
-    // const verifiedOtp = await Otp.findOne({
-    //   where: {
-    //     mobile,
-    //     isUsed: true,
-    //     type: 'company'
-    //   }
-    // });
+    const verifiedOtp = await Otp.findOne({
+      where: {
+        mobile,
+        isUsed: true,
+        type: 'company'
+      }
+    });
 
-    // if (!verifiedOtp) {
-    //   return res.status(400).json({
-    //     success: false,
-    //     message: 'Mobile number not verified. Please verify OTP first.'
-    //   });
-    // }
+    if (!verifiedOtp) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mobile number not verified. Please verify OTP first.'
+      });
+    }
 
     // Parse data from different formats
     const addressData = {
@@ -284,13 +284,6 @@ router.post('/register', upload.single('businessDocument'), registerValidation, 
       state: req.body['address[state]'] || req.body.address?.state,
       pincode: req.body['address[pincode]'] || req.body.address?.pincode
     };
-
-    // Use parsed categories from validation or parse from request
-    const categoriesData = req.parsedCategories || 
-      (typeof req.body.categories === 'string' ? JSON.parse(req.body.categories) : req.body.categories) ||
-      Object.keys(req.body)
-        .filter(key => key.startsWith('categories['))
-        .map(key => req.body[key]);
 
     const experienceData = {
       years: req.body['experience[years]'] || req.body.experience?.years || 0,
@@ -310,12 +303,13 @@ router.post('/register', upload.single('businessDocument'), registerValidation, 
       mobile,
       email,
       address: addressData,
-      categories: categoriesData,
+      categories: req.body.category,
       candidateQuantity,
       experience: experienceData,
       jobLocation: jobLocationData,
       businessDocument: req.file ? req.file.filename : null,
-      isMobileVerified: true // Set to true since OTP is disabled
+      isMobileVerified: true,
+      registrationStatus: 'pending' // Manual approval for companies
     };
 
     console.log('Creating company with data:', companyData);

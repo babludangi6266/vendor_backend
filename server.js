@@ -10,6 +10,7 @@ import { createInitialSuperAdmin } from './config/initialSetup.js';
 import adminRoutes from './routes/adminRoutes.js';
 import candidateRoutes from './routes/candidateRoutes.js';
 import companyRoutes from './routes/companyRoutes.js';
+import paymentRoutes from './routes/paymentRoutes.js'; // ADD THIS LINE
 
 // Load env vars
 dotenv.config();
@@ -24,8 +25,8 @@ const corsOptions = {
   origin: [
     'https://vendor-admin-snowy.vercel.app',
     'https://vendor-public.vercel.app',
-    'http://localhost:3000',
     'http://localhost:3001',
+    'http://localhost:3002',
     'http://localhost:5173' // Vite default port
   ],
   credentials: true,
@@ -46,7 +47,10 @@ app.use(cors(corsOptions));
 // Handle preflight requests explicitly
 app.options('*', cors(corsOptions));
 
-// Body parsing middleware
+// IMPORTANT: For Razorpay webhooks, we need raw body parsing
+app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
+
+// Body parsing middleware for other routes
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -72,6 +76,7 @@ app.use((req, res, next) => {
 app.use('/api/admin', adminRoutes);
 app.use('/api/candidates', candidateRoutes);
 app.use('/api/companies', companyRoutes);
+app.use('/api/payments', paymentRoutes); 
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -111,6 +116,22 @@ app.use((error, req, res, next) => {
     });
   }
   
+  // Razorpay errors
+  if (error.message.includes('razorpay') || error.message.includes('Razorpay')) {
+    return res.status(400).json({
+      success: false,
+      message: 'Payment processing error. Please try again.'
+    });
+  }
+  
+  // SMS service errors
+  if (error.message.includes('SMS') || error.message.includes('OTP')) {
+    return res.status(500).json({
+      success: false,
+      message: 'SMS service temporarily unavailable. Please try again.'
+    });
+  }
+  
   res.status(500).json({
     success: false,
     message: 'Something went wrong!',
@@ -129,6 +150,8 @@ const startServer = async () => {
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📁 Upload directories created: ${uploadDirs.join(', ')}`);
+      console.log(`💰 Payment system: ${process.env.RAZORPAY_KEY_ID ? 'Enabled' : 'Disabled'}`);
+      console.log(`📱 SMS service: ${process.env.DVHOSTING_API_KEY ? 'Enabled' : 'Disabled'}`);
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error.message);

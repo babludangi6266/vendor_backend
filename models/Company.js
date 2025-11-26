@@ -29,8 +29,8 @@ const Company = sequelize.define('Company', {
     allowNull: false
   },
   categories: {
-    type: DataTypes.JSON,
-    allowNull: false
+ type: DataTypes.STRING,
+  allowNull: false
   },
   candidateQuantity: {
     type: DataTypes.INTEGER,
