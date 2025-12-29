@@ -10,7 +10,7 @@ import { createInitialSuperAdmin } from './config/initialSetup.js';
 import adminRoutes from './routes/adminRoutes.js';
 import candidateRoutes from './routes/candidateRoutes.js';
 import companyRoutes from './routes/companyRoutes.js';
-import paymentRoutes from './routes/paymentRoutes.js'; // ADD THIS LINE
+//import paymentRoutes from './routes/paymentRoutes.js'; // ADD THIS LINE
 
 // Load env vars
 dotenv.config();
@@ -48,7 +48,7 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
 // IMPORTANT: For Razorpay webhooks, we need raw body parsing
-app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
+//app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
 
 // Body parsing middleware for other routes
 app.use(express.json({ limit: '10mb' }));
@@ -76,7 +76,7 @@ app.use((req, res, next) => {
 app.use('/api/admin', adminRoutes);
 app.use('/api/candidates', candidateRoutes);
 app.use('/api/companies', companyRoutes);
-app.use('/api/payments', paymentRoutes); 
+//app.use('/api/payments', paymentRoutes); 
 
 // Health check
 app.get('/api/health', (req, res) => {

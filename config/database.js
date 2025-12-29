@@ -1,5 +1,3 @@
-
-
 import { Sequelize } from 'sequelize';
 import dotenv from 'dotenv';
 
@@ -44,4 +42,3 @@ export const connectDB = async () => {
     process.exit(1);
   }
 };
-
