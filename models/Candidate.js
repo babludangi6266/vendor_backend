@@ -64,18 +64,6 @@ const Candidate = sequelize.define('Candidate', {
     type: DataTypes.STRING(50),
     allowNull: true
   },
-  // registrationFee: {
-  //   type: DataTypes.DECIMAL(10, 2),
-  //   defaultValue: 199.00
-  // },
-  // paymentStatus: {
-  //   type: DataTypes.ENUM('pending', 'completed', 'failed'),
-  //   defaultValue: 'pending'
-  // },
-  // registrationStatus: {
-  //   type: DataTypes.ENUM('pending', 'approved', 'rejected'),
-  //   defaultValue: 'pending'
-  // },
   registrationFee: {
     type: DataTypes.DECIMAL(10, 2),
     defaultValue: 0.00 // CHANGED: Default fee is now 0
