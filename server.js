@@ -22,6 +22,7 @@ const corsOptions = {
     'https://admin.thekamakshi.com/',
     'https://www.thekamakshi.com/',
     'https://thekamakshi.com/',
+    'https://api.thekamakshi.com/',
     'http://localhost:3001',
     'http://localhost:3002',
     'http://localhost:5173'
